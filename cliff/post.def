@@ -1,0 +1,71 @@
+bootstrap: docker
+from: nvcr.io/nvidia/pytorch:19.12-py3
+
+%post
+    # Make sure to use the correct jupyter config
+    if [ -d /opt/conda/etc/jupyter ]; then
+        rm -f /opt/conda/etc/jupyter/jupyter_notebook_config.py
+        rm -f /opt/conda/etc/jupyter/jupyter_notebook_config.json
+    fi
+    apt -qy update
+    apt -qy install python3-opengl llvm-6.0 llvm-6.0-tools libsm6 libxrender1 libfontconfig1 freeglut3 freeglut3-dev
+    apt --fix-broken install -y
+    cd /workspace
+    wget https://github.com/mmatl/travis_debs/raw/master/xenial/mesa_18.3.3-0.deb
+dpkg -i ./mesa_18.3.3-0.deb || true
+    apt install -f
+    git clone https://github.com/haofanwang/CLIFF.git
+    cd CLIFF
+    #source /root/.bashrc
+    . /opt/conda/etc/profile.d/conda.sh
+    pip uninstall torch torchvision -y
+    conda create -n cliff python=3.10 -y
+    conda activate cliff
+    pip install -r requirements.txt
+    pip install torchvision
+    #pip install -e .
+    mkdir data/ckpt
+    wget -O data/ckpt/hr48-PA43.0_MJE69.0_MVE81.2_3dpw.pt https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/ETrCbJGoUUBAoFtjjgmHX8EBHUJG-vDRzLexcsj7jHZo-A?Download=1
+    wget -O data/ckpt/res50-PA45.7_MJE72.0_MVE85.3_3dpw.pt https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Eb9Ryrn_uv5Hl6qcALFbeL4Br0RhctOqPMpt4XuZ_Qw2ag?Download=1
+    wget -O data/ckpt/hr48-PA53.7_MJE91.4_MVE110.0_agora_val.pt https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/ETQcMrcFqIFOqO6ycigi5mUBssTVDiUbQ9UEhE4bbcPa9Q?Download=1
+    wget -O data/SMPL_FEMALE.pkl https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ea6jFVa2_kxFqVkzNTGSK6cBx0uktZICDmGz4Wk60Q71zQ?Download=1
+    wget -O data/SMPL_MALE.pkl https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EabIaUepYa9FrzaPO2Jkd0MBC-8tMQ8Cl_m7eWkvb0uj9w?Download=1
+    wget -O data/SMPL_NEUTRAL.pkl https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EXhHccqr_o9Lm68ODXyE5cEBQURvELrfpH3SCZIDYzymKg?Download=1
+    pip install -U openmim
+    mim install mmcv-full
+    git clone https://github.com/open-mmlab/mmdetection.git
+    cd mmdetection
+    pip install -v -e .
+    cd ..
+    git clone https://github.com/open-mmlab/mmtracking.git
+    cd mmtracking
+    pip install -r requirements/build.txt
+    pip install -v -e .
+    cd ..
+    mkdir mmdetection/checkpoints
+    mkdir mmtracking/checkpoints
+    wget -O mmdetection/checkpoints/yolox_x_8x8_300e_coco_20211126_140254-1ef88d67.pth https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EQJ0bfs0ZbJIioItFtNPFkgBY_SC9HjI8fBf8lgNrgpNdQ?Download=1
+    wget -O mmtracking/checkpoints/bytetrack_yolox_x_crowdhuman_mot17-private-half_20211218_205500-1985c9f0.pth https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ef0yi0h1mIBBro-Jr_H-Ni8Bxa2TCSgmmIfaAHz18tifGQ?Download=1
+    pip uninstall pyopengl -y
+    git clone https://github.com/mmatl/pyopengl.git
+    pip install ./pyopengl
+    pip install chumpy
+    conda config --add channels conda-forge
+    conda config --set channel_priority strict
+    conda install ffmpeg -y
+    sed -i.bak '301,308s/^/#/' /opt/conda/envs/cliff/lib/python3.10/site-packages/torchgeometry/core/conversions.py
+    sed -i.bak '300a\
+    inv_mask_d0_d1 = ~mask_d0_d1\
+    inv_mask_d0_nd1 = ~mask_d0_nd1\
+    inv_mask_d2 = ~mask_d2\
+    mask_c0 = mask_d2 * mask_d0_d1\
+    mask_c1 = mask_d2 * inv_mask_d0_d1\
+    mask_c2 = inv_mask_d2 * mask_d0_nd1\
+    mask_c3 = inv_mask_d2 * inv_mask_d0_nd1\
+    mask_c0 = mask_c0.view(-1, 1).type_as(q0)\
+    mask_c1 = mask_c1.view(-1, 1).type_as(q1)\
+    mask_c2 = mask_c2.view(-1, 1).type_as(q2)\
+    mask_c3 = mask_c3.view(-1, 1).type_as(q3)' /opt/conda/envs/cliff/lib/python3.10/site-packages/torchgeometry/core/conversions.py
+    sed -i.bak '22s/^/# /' /workspace/CLIFF/common/renderer_pyrd.py
+    sed -i.bak '10a\os.environ["PYOPENGL_PLATFORM"] = "osmesa"' /workspace/CLIFF/common/renderer_pyrd.py
+    sed -i -e '$a export LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH' ~/.bashrc
