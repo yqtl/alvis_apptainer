@@ -1,0 +1,31 @@
+bootstrap: localimage
+from: /mimer/NOBACKUP/groups/snic2022-22-770/singularity_image/OSSO/OSSO.sif
+
+%post
+    # Make sure to use the correct jupyter config
+    if [ -d /opt/conda/etc/jupyter ]; then
+        rm -f /opt/conda/etc/jupyter/jupyter_notebook_config.py
+        rm -f /opt/conda/etc/jupyter/jupyter_notebook_config.json
+    fi
+    apt-get update
+    apt-get -y install libboost-dev
+    cd /workspace
+    git clone https://github.com/MarilynKeller/OSSO
+    cd OSSO
+    . /opt/conda/etc/profile.d/conda.sh
+    conda create -n OSSO python=3.8 -y
+    conda activate OSSO
+    python3.8 -m venv osso_venv
+    source osso_venv/bin/activate
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    git clone https://github.com/silviazuffi/gloss_skeleton.git
+    git clone https://github.com/MPI-IS/mesh.git
+    cd mesh
+    make all
+    cd ../data
+    wget -O star_1_1.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed71xfaoOd1Clz7lfAwfA-QB75bJsnFtcXY9TXjX9EN31g?Download=1
+    unzip star_1_1.zip && rm star_1_1.zip
+    wget -O skeleton.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EfBuqJ1YCaNFtmHOU0VkfRQB_ulgz5SiDpFxcHooEWywwA?Download=1
+    unzip skeleton.zip && rm skeleton.zip
+    #activate the conda environemtn and virtual environmentin bashrc
