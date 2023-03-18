@@ -4,7 +4,7 @@ From: ubuntu:latest
 %post
     # Update package list and install required packages
     apt-get update
-    apt-get -y install python3 wget zlib1g-dev cmake-curses-gui build-essential unzip bc
+    apt-get -y install python3 wget zlib1g-dev cmake-curses-gui build-essential unzip bc parallel cmake
     mkdir -p /home/Download
     cd /home/Download
 
@@ -12,48 +12,18 @@ From: ubuntu:latest
     wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/releases/fslinstaller.py
     echo | python3 fslinstaller.py
 
-    # Install GCC 8 g++8
-    wget http://mirrors.kernel.org/ubuntu/pool/universe/g/gcc-8/gcc-8_8.4.0-3ubuntu2_amd64.deb
-    wget http://mirrors.edge.kernel.org/ubuntu/pool/universe/g/gcc-8/gcc-8-base_8.4.0-3ubuntu2_amd64.deb
-    wget http://mirrors.kernel.org/ubuntu/pool/universe/g/gcc-8/libgcc-8-dev_8.4.0-3ubuntu2_amd64.deb
-    wget http://mirrors.kernel.org/ubuntu/pool/universe/g/gcc-8/cpp-8_8.4.0-3ubuntu2_amd64.deb
-    wget http://mirrors.kernel.org/ubuntu/pool/universe/g/gcc-8/libmpx2_8.4.0-3ubuntu2_amd64.deb
-    wget http://mirrors.kernel.org/ubuntu/pool/main/i/isl/libisl22_0.22.1-1_amd64.deb
-    apt install -y ./libisl22_0.22.1-1_amd64.deb ./libmpx2_8.4.0-3ubuntu2_amd64.deb ./cpp-8_8.4.0-3ubuntu2_amd64.deb ./libgcc-8-dev_8.4.0-3ubuntu2_amd64.deb ./gcc-8-base_8.4.0-3ubuntu2_amd64.deb ./gcc-8_8.4.0-3ubuntu2_amd64.deb
-    wget http://mirrors.kernel.org/ubuntu/pool/universe/g/gcc-8/libstdc++-8-dev_8.4.0-3ubuntu2_amd64.deb
-    wget http://mirrors.kernel.org/ubuntu/pool/universe/g/gcc-8/g++-8_8.4.0-3ubuntu2_amd64.deb
-    apt install -y ./libstdc++-8-dev_8.4.0-3ubuntu2_amd64.deb ./g++-8_8.4.0-3ubuntu2_amd64.deb
-
-    # Export compiler environment
-    export CC=gcc-8
-    export CXX=g++-8
-
-    # Install cmake 2.8.4
-    wget https://cmake.org/files/v2.8/cmake-2.8.4.tar.gz
-    tar -xzf cmake-2.8.4.tar.gz && rm cmake-2.8.4.tar.gz
-    cd cmake-2.8.4
-    env CC='gcc-8' CXX='g++-8' ./bootstrap
-    make
-    make install
-    cd /home/Download
-
     # Download and extract DRAMMS 1.5.1
+    cd /home/Download
     wget -O dramms-1.5.1-source.tar.gz https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed8PIxb0XENNmexGW49U4vwB_be0MXPqic_FePgQXQJwuQ?Download=1
     tar -xzf dramms-1.5.1-source.tar.gz && rm dramms-1.5.1-source.tar.gz
-    cd dramms-1.5.1-source
-    wget -O /home/Download/dramms-1.5.1-source/build/FastPD_DemoVersion.zip http://www.csd.uoc.gr/~komod/php/download.php?f=FastPD_DemoVersion.zip
-    wget -O /home/Download/dramms-1.5.1-source/build/nifticlib-2.0.0.tar.gz http://pkgs.fedoraproject.org/repo/pkgs/nifticlib/nifticlib-2.0.0.tar.gz/425a711f8f92fb1e1f088cbc55bea53a/nifticlib-2.0.0.tar.gz
-
+    
     # Build DRAMMS
     cd /home/Download/dramms-1.5.1-source/build
-    #MANUAL ccmkae. confiugure
-    #cmake -DZLIB_LIBRARY=/usr/lib/x86_64-linux-gnu/libz.so .
-    #make (will fail)
-    #ccmake .
-    #make (succeed, why?)
-    #install parallel
+    cmake .
+    make
 
 %environment
+    export LC_ALL=C
     FSLDIR=/usr/local/fsl
     export FSLDIR
     PATH=${FSLDIR}/bin:${PATH}
