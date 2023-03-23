@@ -1,0 +1,30 @@
+Bootstrap: docker
+From: ubuntu:latest
+
+%post
+    # Update package list and install required packages
+    apt-get update
+    apt-get -y install python3 wget zlib1g-dev cmake-curses-gui build-essential unzip bc parallel cmake
+    mkdir -p /home/Download
+    cd /home/Download
+
+    # Install FSL 6.0.5
+    wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/releases/fslinstaller.py
+    echo | python3 fslinstaller.py
+
+    # Download and extract DRAMMS 1.5.1
+    cd /home/Download
+    wget -O dramms-1.5.1-source.tar.gz https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed8PIxb0XENNmexGW49U4vwB_be0MXPqic_FePgQXQJwuQ?Download=1
+    tar -xzf dramms-1.5.1-source.tar.gz && rm dramms-1.5.1-source.tar.gz
+    
+    # Build DRAMMS
+    cd /home/Download/dramms-1.5.1-source/build
+    cmake .
+    make
+
+%environment
+    export LC_ALL=C
+    FSLDIR=/usr/local/fsl
+    export FSLDIR
+    PATH=${FSLDIR}/bin:${PATH}
+    export PATH
