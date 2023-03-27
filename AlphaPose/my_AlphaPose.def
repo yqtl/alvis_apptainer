@@ -1,0 +1,49 @@
+bootstrap: docker
+from: nvcr.io/nvidia/cuda:11.3.0-cudnn8-devel-ubuntu20.04
+
+%post
+    export TORCH_CUDA_ARCH_LIST="3.5;5.0;6.0;6.1;7.0;7.5;8.0;8.6+PTX"
+    # Make image writable with overlays
+    chmod a+rwX -fR /boot /bin /sbin /lib /lib32 /lib64 /usr /etc /var /opt || :
+    # Update system packages and install essential build tools
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential cmake git wget nano ffmpeg software-properties-common python3-setuptools python3-dev python3-pip python3-tk cython libx264-dev sudo pkg-config libyaml-dev ffmpeg vim less
+
+    # Install Python dependencies
+    #pip3 install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu113
+    pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+    pip3 install opencv-contrib-python-headless matplotlib scipy cython halpecocotools
+    # Create symbolic link
+    cd /usr/bin
+    ln -s python3 python
+    # 3. Get AlphaPose
+    mkdir /workspace && cd /workspace
+    git clone https://github.com/yqtl/AlphaPose
+    cd AlphaPose
+
+
+    # 4. install
+    export PATH=/usr/local/cuda/bin/:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64/:$LD_LIBRARY_PATH
+    ######################################################
+    python setup.py build develop
+
+    # 5. Install PyTorch3D (Optional, only for visualization)
+
+    mkdir detector/yolo/data
+    wget -O detector/yolo/data/yolov3-spp.weights https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EZ_BzG1PWiNEu-rrCefeHpwBr8z90O3-CML33iaNWbn_aw?Download=1
+    mkdir detector/yolox/data
+    wget -O detector/yolox/data/yolox_l.pth https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EXyv94lGhPlKpY4x8KK58LIB1162I1XozIftvi3JwUfVEw?Download=1
+    wget -O detector/yolox/data/yolox_x.pth https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/ETIhewBLyKVEqWK2ZApVTtIBEI30c90NhAjdHx4X51li1A?Download=1
+    wget -O pretrained_models/pretrained_w_cam.pth https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EYYxOoJUPrdDi6tILrkD1acBDBkNKr--J3XgPX_-w6nD0A?Download=1
+    mkdir trackers/weights
+    wget -O trackers/weights/osnet_ain_x1_0_msmt17_256x128_amsgrad_ep50_lr0.0015_coslr_b64_fb10_softmax_labsmth_flip_jitter.pth https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EV3-8e1YQRpPt0EsFWt-zo8BKkovZAS-LmHVT6jPHcDr6g?Download=1
+    wget -O model_files/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EUZ5639YyexAhH6W6qT3WgkBs16v3f0hnDvasfeySMm1pQ?Download=1
+    pip install chumpy numpy==1.23
+    export FORCE_CUDA=1
+    pip install "git+https://github.com/facebookresearch/pytorch3d.git"
+
+%environment
+    export PATH=/usr/local/cuda/bin/:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64/:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.6/targets/x86_64-linux/lib:${LD_LIBRARY_PATH}
