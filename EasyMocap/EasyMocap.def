@@ -1,0 +1,101 @@
+bootstrap: docker
+# from: nvcr.io/nvidia/cuda:11.3.0-cudnn8-devel-ubuntu20.04
+# from: nvcr.io/nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
+# No cudnn, but CUDA must >= 11 to be compatible with Nvidia 30xx cards.
+from: nvcr.io/nvidia/cuda:11.7.1-devel-ubuntu20.04
+
+%post
+    # Set CUDA architecture list
+    export TORCH_CUDA_ARCH_LIST="3.5;5.0;6.0;6.1;7.0;7.5;8.0;8.6+PTX"
+
+    # Make image writable with overlays
+    chmod a+rwX -fR /boot /bin /sbin /lib /lib32 /lib64 /usr /etc /var /opt || :
+
+    # Update system packages and install essential build tools
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential cmake git wget vim ffmpeg software-properties-common \
+        python3-setuptools python3-dev python3-pip python3-tk cython \
+        libx264-dev sudo pkg-config libyaml-dev libopencv-dev \
+        libgoogle-glog-dev libboost-all-dev libhdf5-dev libatlas-base-dev \
+        libopencv-dev protobuf-compiler libgoogle-glog-dev libboost-all-dev \
+        libhdf5-dev libatlas-base-dev libprotobuf-dev zip unzip file ninja-build
+
+    # Install Mesa
+    wget -c https://github.com/mmatl/travis_debs/raw/master/xenial/mesa_18.3.3-0.deb
+    dpkg -i ./mesa_18.3.3-0.deb || true
+    apt -y install -f
+
+    # Install OpenPose
+    mkdir /workspace && cd /workspace
+    git clone https://github.com/CMU-Perceptual-Computing-Lab/openpose.git --depth 1
+    cd openpose
+    git submodule update --init --recursive --remote
+    mkdir build && cd build
+    cmake .. -DBUILD_PYTHON=true -DUSE_CUDNN=OFF
+    make -j8
+
+    # Build Easymocap
+    cd /workspace && git clone https://github.com/zju3dv/EasyMocap.git
+
+    # Install YOLO models
+    cd EasyMocap/ && mkdir -p data/models
+    wget -c https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights && mv yolov4.weights data/models/
+    wget -O data/models/pose_hrnet_w48_384x288.pth https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EcaiOp-XRXZEhKkMXno9bXQB3idCNCGD62FxVN3znvflmw?Download=1
+
+    # Install SPIN models
+    wget -O data/models/spin_checkpoints.pt http://visiondata.cis.upenn.edu/spin/model_checkpoint.pt
+    wget -c http://visiondata.cis.upenn.edu/spin/data.tar.gz && tar -xvf data.tar.gz && mv data/smpl_mean_params.npz data/models/ && rm data.tar.gz && rm data/J_regressor_h36m.npy data/cube_parts.npy data/train.h5 data/vertex_texture.npy data/J_regressor_extra.npy data/gmm_08.pkl
+
+    # Install SMPL
+    cd /workspace/EasyMocap && mkdir -p data/bodymodels && cd data/bodymodels
+    wget -O SMPL_python_v.1.1.0.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed4cb9at1jFCrWsbzGXsE14Bnsru19ZkRC9OWANmVqaH2g?Download=1
+    unzip SMPL_python_v.1.1.0.zip && rm SMPL_python_v.1.1.0.zip
+
+    # Install MANO
+    wget -O mano_v1_2.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EfbE1jWHW2VPkiCPhK5wAAMBBq51E6GXURdEOxkc-LBrJQ?Download=1
+    unzip mano_v1_2.zip && rm mano_v1_2.zip
+    mv mano_v1_2 manov1.2
+
+    # Install SMPL+H
+    wget -O smplh.tar.xz https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EWjlXHitzgpNruBllpAHb5gBqIQ1tUOsW0SAQKN_eoljIQ?Download=1
+    mkdir smplhv1.2 && tar -xvf smplh.tar.xz -C smplhv1.2 && rm smplh.tar.xz
+
+    # Install dependencies
+    # Pytorch
+    pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu117
+
+    # Prepare for visualization
+    # Install pyopengl
+    cd /workspace/EasyMocap && mkdir -p 3rdparty && cd 3rdparty
+    git clone https://github.com/mmatl/pyopengl.git --depth=1
+    python3 -m pip uninstall pyopengl
+    python3 -m pip install ./pyopengl
+
+    # Install Open3D
+    python3 -m pip install -U pip  # run this if pip can not find this version
+    python3 -m pip install open3d==0.14.1
+
+    # Install PyTorch3D, adapted from AlphaPose.def
+    pip install chumpy numpy==1.23
+    export FORCE_CUDA=1
+    pip install "git+https://github.com/facebookresearch/pytorch3d.git"
+
+    # Install EasyMocap
+    cd /workspace/EasyMocap
+    python3 -m pip install -r requirements.txt
+    python3 setup.py develop --user
+
+    # Create soft links for smpl models
+    mkdir -p /workspace/EasyMocap/data/smplx/smpl
+    ln -s /workspace/EasyMocap/data/bodymodels/SMPL_python_v.1.1.0/smpl/models/basicmodel_m_lbs_10_207_0_v1.1.0.pkl /workspace/EasyMocap/data/smplx/smpl/SMPL_MALE.pkl
+    ln -s /workspace/EasyMocap/data/bodymodels/SMPL_python_v.1.1.0/smpl/models/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl /workspace/EasyMocap/data/smplx/smpl/SMPL_NEUTRAL.pkl
+    ln -s /workspace/EasyMocap/data/bodymodels/SMPL_python_v.1.1.0/smpl/models/basicmodel_f_lbs_10_207_0_v1.1.0.pkl /workspace/EasyMocap/data/smplx/smpl/SMPL_FEMALE.pkl
+
+    # Fix reconstruction volume criterion
+    sed -i -e '/return crit.sum()\/crit.shape\[0\] > self.rate/ s/\(.*\)/        return 1\n#\1/' -e '$a\' easymocap/assignment/criterion.py
+
+%environment
+# Add osmesa to environment variable
+export PYOPENGL_PLATFORM=osmesa
+export openpose=/workspace/openpose
