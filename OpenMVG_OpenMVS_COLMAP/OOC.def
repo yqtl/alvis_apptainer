@@ -1,0 +1,135 @@
+Bootstrap: docker
+From: nvidia/cuda:11.7.0-devel-ubuntu22.04
+Stage: spython-base
+
+%post
+
+    # Make image writable with overlays
+    chmod a+rwX -fR /boot /bin /sbin /lib /lib32 /lib64 /usr /etc /var /opt || :
+    COLMAP_VERSION=dev
+    CUDA_ARCHITECTURES="80;86;75;70"
+    QT_XCB_GL_INTEGRATION=xcb_egl
+    export TORCH_CUDA_ARCH_LIST="3.5;5.0;6.0;6.1;7.0;7.5;8.0;8.6+PTX"
+    # Get dependencies
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -yq install \
+    cmake \
+    build-essential \
+    graphviz \
+    git \
+    coinor-libclp-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff-dev \
+    libxi-dev \
+    libxinerama-dev \
+    libxcursor-dev \
+    libxxf86vm-dev \
+    ninja-build \
+    libboost-program-options-dev \
+    libboost-filesystem-dev \
+    libboost-graph-dev \
+    libboost-system-dev \
+    libboost-test-dev \
+    libeigen3-dev \
+    libflann-dev \
+    libfreeimage-dev \
+    libmetis-dev \
+    libgoogle-glog-dev \
+    libgflags-dev \
+    libsqlite3-dev \
+    libglew-dev \
+    qtbase5-dev \
+    libqt5opengl5-dev \
+    libcgal-dev \
+    libceres-dev
+    apt-get autoclean && apt-get clean
+
+    # Boost
+    apt-get -yq install libboost-iostreams-dev libboost-program-options-dev libboost-system-dev libboost-serialization-dev
+
+    # CGAL
+    apt-get -yq install libcgal-dev libcgal-qt5-dev
+
+    #GLFW3 (Optional)
+    apt-get -yq install freeglut3-dev libglew-dev libglfw3-dev
+
+    # Install COLMAP dependencies
+    DEBIAN_FRONTEND=noninteractive apt-get -yq install \
+    libboost-program-options-dev \
+    libboost-filesystem-dev \
+    libboost-graph-dev \
+    libboost-regex-dev \
+    libboost-system-dev \
+    libboost-test-dev \
+    libeigen3-dev \
+    libsuitesparse-dev \
+    libfreeimage-dev \
+    libgoogle-glog-dev \
+    libgflags-dev \
+    libglew-dev \
+    qtbase5-dev \
+    libqt5opengl5-dev \
+    libopencv-dev
+
+    # Build latest COLMAP
+    git clone https://github.com/colmap/colmap.git --branch dev
+    mkdir comap_build && cd comap_build
+    cmake . ../colmap -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} -DCMAKE_INSTALL_PREFIX="/opt"
+    make -j4 && make install
+    cd .. && rm -rf comap_build
+
+
+    # Build latest openvMVG
+    git clone --recursive https://github.com/openMVG/openMVG.git --branch develop
+    mkdir openMVG_build && cd openMVG_build
+    cmake -DCMAKE_BUILD_TYPE=RELEASE \
+    -DCMAKE_INSTALL_PREFIX="/opt" \
+    -DOpenMVG_BUILD_TESTS=OFF \
+    -DOpenMVG_BUILD_EXAMPLES=OFF \
+    -DOpenMVG_BUILD_DOC=OFF \
+    -DOpenMVG_BUILD_OPENGL_EXAMPLES=ON \
+    -DOpenMVG_USE_OPENCV=ON \
+    -DOpenMVG_USE_OCVSIFT=OFF \
+    -DCOINUTILS_INCLUDE_DIR_HINTS=/usr/include \
+    -DCLP_INCLUDE_DIR_HINTS=/usr/include \
+    -DOSI_INCLUDE_DIR_HINTS=/usr/include \
+    -DEIGEN_INCLUDE_DIR_HINTS=/usr/include/eigen3 \
+    ../openMVG/src \
+    make -j 4 && make install
+    cp ../openMVG/src/openMVG/exif/sensor_width_database/sensor_width_camera_database.txt /opt/bin/
+    cd .. && rm -rf openMVG_build
+
+    # Eigen (Known issues with eigen 3.3.7 as of 12/10/2019, so using this tested branch/commit instead)
+    git clone https://gitlab.com/libeigen/eigen --branch 3.2
+    mkdir eigen_build && cd eigen_build
+    cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX="/usr/local/include/eigen32" . ../eigen
+    make && make install
+    cd .. && rm -rf eigen_build
+
+    # VCGLib
+    git clone https://github.com/cdcseacave/VCG.git vcglib
+
+    # Build latest openMVS
+    git clone https://github.com/cdcseacave/openMVS.git --branch develop
+    mkdir openMVS_build && cd openMVS_build
+    cmake . ../openMVS -DCMAKE_BUILD_TYPE=Release \
+    -DVCG_ROOT=/vcglib \
+    -DEIGEN3_INCLUDE_DIR=/usr/local/include/eigen32/include/eigen3 \
+    -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs/ \
+    -DCMAKE_INSTALL_PREFIX="/opt"
+    make -j4 && make install
+    cp ../openMVS/MvgMvsPipeline.py /opt/bin/
+    cd .. && rm -rf openMVS_build
+
+    # Install cmvs-pmvs
+    git clone https://github.com/pmoulon/CMVS-PMVS cmvs-pmvs
+    mkdir cmvs_pmvs_build && cd cmvs_pmvs_build
+    cmake ../cmvs-pmvs/program -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt
+    make -j4 && make install
+    cd .. && rm -rf cmvs_pmvs_build
+
+    # Add binaries to path
+    PATH=$PATH:/opt/bin:/opt/bin/OpenMVS
+
+%environment
+    export PATH=$PATH:/opt/bin:/opt/bin/OpenMVS

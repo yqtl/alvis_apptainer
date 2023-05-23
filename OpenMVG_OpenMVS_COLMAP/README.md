@@ -1,0 +1,2 @@
+Code largely borrowed from https://gist.github.com/cdcseacave/ef290eacefa44db67dadaed01a6fe319.
+CUDA part borrowd from original COLMAP docker file, instead which use ninja. https://github.com/colmap/colmap/blob/9eddf2e45b219923660759715e046db090919b84/docker/Dockerfile
