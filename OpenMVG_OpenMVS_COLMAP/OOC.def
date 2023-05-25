@@ -76,7 +76,7 @@ Stage: spython-base
     mkdir comap_build && cd comap_build
     cmake . ../colmap -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} -DCMAKE_INSTALL_PREFIX="/opt"
     make -j4 && make install
-    cd .. && rm -rf comap_build
+    cd ..
 
 
     # Build latest openvMVG
@@ -85,11 +85,11 @@ Stage: spython-base
     cmake -DCMAKE_BUILD_TYPE=RELEASE \
     -DCMAKE_INSTALL_PREFIX="/opt" \
     -DOpenMVG_BUILD_TESTS=OFF \
-    -DOpenMVG_BUILD_EXAMPLES=OFF \
+    -DOpenMVG_BUILD_EXAMPLES=ON \
     -DOpenMVG_BUILD_DOC=OFF \
     -DOpenMVG_BUILD_OPENGL_EXAMPLES=ON \
     -DOpenMVG_USE_OPENCV=ON \
-    -DOpenMVG_USE_OCVSIFT=OFF \
+    -DOpenMVG_USE_OCVSIFT=ON \
     -DCOINUTILS_INCLUDE_DIR_HINTS=/usr/include \
     -DCLP_INCLUDE_DIR_HINTS=/usr/include \
     -DOSI_INCLUDE_DIR_HINTS=/usr/include \
@@ -97,14 +97,14 @@ Stage: spython-base
     ../openMVG/src \
     make -j 4 && make install
     cp ../openMVG/src/openMVG/exif/sensor_width_database/sensor_width_camera_database.txt /opt/bin/
-    cd .. && rm -rf openMVG_build
+    cd ..
 
     # Eigen (Known issues with eigen 3.3.7 as of 12/10/2019, so using this tested branch/commit instead)
     git clone https://gitlab.com/libeigen/eigen --branch 3.2
     mkdir eigen_build && cd eigen_build
     cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX="/usr/local/include/eigen32" . ../eigen
     make && make install
-    cd .. && rm -rf eigen_build
+    cd ..
 
     # VCGLib
     git clone https://github.com/cdcseacave/VCG.git vcglib
@@ -119,15 +119,14 @@ Stage: spython-base
     -DCMAKE_INSTALL_PREFIX="/opt"
     make -j4 && make install
     cp ../openMVS/MvgMvsPipeline.py /opt/bin/
-    cd .. && rm -rf openMVS_build
+    cd ..
 
     # Install cmvs-pmvs
     git clone https://github.com/pmoulon/CMVS-PMVS cmvs-pmvs
     mkdir cmvs_pmvs_build && cd cmvs_pmvs_build
     cmake ../cmvs-pmvs/program -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt
     make -j4 && make install
-    cd .. && rm -rf cmvs_pmvs_build
-
+    cd ..
     # Add binaries to path
     PATH=$PATH:/opt/bin:/opt/bin/OpenMVS
 

@@ -1,0 +1,128 @@
+#no GPU version
+Bootstrap: docker
+From: ubuntu:jammy
+
+%post
+    PATH=$PATH:/opt/openMVG_Build/install/bin
+    PATH=$PATH:/opt/colmap_Build/install/bin
+    PATH=$PATH:/opt/openMVS_build/install/bin
+    export PATH
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq tzdata; \
+    apt-get install -yq \
+    cmake \
+    build-essential \
+    graphviz \
+    git \
+    coinor-libclp-dev \
+    libjpeg-dev \
+    liblemon-dev \
+    libpng-dev \
+    libtiff-dev \
+    libxi-dev \
+    libxinerama-dev \
+    libxcursor-dev \
+    libxxf86vm-dev \
+    apt-utils \
+    python3-minimal \
+    ninja-build \
+    libboost-program-options-dev \
+    libboost-filesystem-dev \
+    libboost-graph-dev \
+    libboost-regex-dev \
+    libboost-system-dev \
+    libboost-test-dev \
+    libeigen3-dev \
+    libflann-dev \
+    libfreeimage-dev \
+    libmetis-dev \
+    libgoogle-glog-dev \
+    libgflags-dev \
+    libsqlite3-dev \
+    libglew-dev \
+    qtbase5-dev \
+    libqt5opengl5-dev \
+    libcgal-dev \
+    libceres-dev \
+    libboost-program-options-dev \
+    libboost-filesystem-dev \
+    libboost-graph-dev \
+    libboost-regex-dev \
+    libboost-system-dev \
+    libboost-test-dev \
+    libeigen3-dev \
+    libsuitesparse-dev \
+    libfreeimage-dev \
+    libgoogle-glog-dev \
+    libgflags-dev \
+    libglew-dev \
+    qtbase5-dev \
+    libqt5opengl5-dev \
+    libglu1-mesa-dev
+    apt-get autoclean && apt-get clean
+    # Boost
+    apt-get -yq install libboost-iostreams-dev libboost-program-options-dev libboost-system-dev libboost-serialization-dev
+    # GLFW3
+    apt-get -yq install freeglut3-dev libglew-dev libglfw3-dev
+    # CGAL
+    apt-get -yq install libcgal-dev libcgal-qt5-dev
+    # OPENCV
+    DEBIAN_FRONTEND=noninteractive apt-get install -yq libopencv-dev
+    
+    
+    # OPENMVG Use OpenCV SIFT features: OFF
+    cd /opt
+    git clone --recursive https://github.com/openMVG/openMVG.git --branch develop
+    cd openMVG && git submodule update --init --recursive
+    mkdir /opt/openMVG_Build; \
+    cd /opt/openMVG_Build; \
+    cmake -DCMAKE_BUILD_TYPE=RELEASE \
+    -DCMAKE_INSTALL_PREFIX="/opt/openMVG_Build/install" \
+    -DOpenMVG_BUILD_TESTS=ON \
+    -DOpenMVG_BUILD_EXAMPLES=OFF \
+    -DCOINUTILS_INCLUDE_DIR_HINTS=/usr/include \
+    -DLEMON_INCLUDE_DIR_HINTS=/usr/include/lemon \
+    -DCLP_INCLUDE_DIR_HINTS=/usr/include \
+    -DOSI_INCLUDE_DIR_HINTS=/usr/include \
+    -DOpenMVG_USE_OCVSIFT=ON \
+    -DOpenMVG_USE_OPENCV=ON \
+    ../openMVG/src; \
+    make -j4
+    cd /opt/openMVG_Build && make test && make install
+    
+    cd /opt
+    git clone https://github.com/colmap/colmap.git --branch dev
+    mkdir /opt/colmap_Build && cd /opt/colmap_Build
+    cmake . ../colmap -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="/opt/colmap_Build/install"
+    make -j4 && make install
+
+    # Eigen
+    cd /opt
+    git clone https://gitlab.com/libeigen/eigen --branch 3.4
+    mkdir eigen_build
+    cd eigen_build && cmake . ../eigen && make && make install
+
+    # VCGLib
+    cd /opt
+    git clone https://github.com/cdcseacave/VCG.git vcglib
+    git clone https://github.com/cdcseacave/openMVS.git --branch master
+    mkdir openMVS_build
+    cd openMVS_build &&	cmake . ../openMVS \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="/opt/openMVS_build/install" \
+    -DVCG_ROOT="/opt/vcglib" \
+    -DOpenMVS_USE_CUDA=OFF
+    make -j4 &&	make install
+
+    # Install cmvs-pmvs
+    cd /opt
+    git clone https://github.com/pmoulon/CMVS-PMVS cmvs-pmvs
+    mkdir cmvs_pmvs_build && cd cmvs_pmvs_build
+    cmake ../cmvs-pmvs/program -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="/opt/cmvs_pmvs_build/install"
+    make -j4 && make install
+
+%environment
+    PATH=$PATH:/opt/openMVG_Build/install/bin
+    PATH=$PATH:/opt/colmap_Build/install/bin
+    PATH=$PATH:/opt/openMVS_build/install/bin
+    export PATH

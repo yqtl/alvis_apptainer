@@ -1,0 +1,50 @@
+Bootstrap: docker
+From: ubuntu:22.04
+Stage: spython-base
+
+%post
+
+
+# Prepare and empty machine for building:
+apt-get update -yq
+apt-get -yq install build-essential git cmake libpng-dev libjpeg-dev libtiff-dev libglu1-mesa-dev
+
+# Eigen
+git clone https://gitlab.com/libeigen/eigen --branch 3.4
+mkdir eigen_build
+cd eigen_build &&\
+cmake . ../eigen &&\
+make && make install &&\
+cd ..
+
+# Boost
+apt-get -y install libboost-iostreams-dev libboost-program-options-dev libboost-system-dev libboost-serialization-dev
+
+# OpenCV
+DEBIAN_FRONTEND=noninteractive apt-get install -yq libopencv-dev
+
+# CGAL
+apt-get -yq install libcgal-dev libcgal-qt5-dev
+
+# VCGLib
+git clone https://github.com/cdcseacave/VCG.git vcglib
+
+# Build from stable openMVS release or the latest commit from the develop branch
+git clone https://github.com/cdcseacave/openMVS.git --branch master
+
+mkdir openMVS_build
+cd openMVS_build &&\
+cmake . ../openMVS -DCMAKE_BUILD_TYPE=Release -DVCG_ROOT=/vcglib -DOpenMVS_USE_CUDA=OFF
+
+# Install OpenMVS library
+make -j4 &&\
+make install
+
+# Add binaries to path
+PATH=/usr/local/bin/OpenMVS:$PATH
+
+%environment
+export PATH=/usr/local/bin/OpenMVS:$PATH
+#%runscript
+#exec /bin/bash "$@"
+#%startscript
