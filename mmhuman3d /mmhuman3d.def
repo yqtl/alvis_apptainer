@@ -1,0 +1,124 @@
+#This is a apptainer script that will install the latest version of the MMHuman3D
+Bootstrap: docker
+#From: nvcr.io/nvidia/pytorch:20.12-py3 #Default Torch version is 1.8.0a0+1606899, CUDA 11.1
+From: nvcr.io/nvidia/cuda:11.1.1-devel-ubuntu20.04
+%post
+apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential cmake git wget vim ffmpeg software-properties-common \
+        python3-setuptools python3-dev python3-pip python3-tk cython \
+        libx264-dev sudo pkg-config libyaml-dev libopencv-dev \
+        libgoogle-glog-dev libboost-all-dev libhdf5-dev libatlas-base-dev \
+        libopencv-dev protobuf-compiler libgoogle-glog-dev libboost-all-dev \
+        libhdf5-dev libatlas-base-dev libprotobuf-dev zip unzip file ninja-build p7zip-full p7zip-rar
+cd /
+wget http://mirrors.kernel.org/ubuntu/pool/main/g/glibc/libc6_2.35-0ubuntu3_amd64.deb
+dpkg -i libc6_2.35-0ubuntu3_amd64.deb
+
+export TORCH_CUDA_ARCH_LIST="3.5;5.0;6.0;6.1;7.0;7.5;8.0;8.6+PTX"
+#Install Torchvision
+#install PyTorch if using naked CUDA 11.1
+pip install torch==1.8.0+cu111 torchvision==0.9.0+cu111 torchaudio==0.8.0 -f https://download.pytorch.org/whl/torch_stable.html
+#prerequisite for PyTorch3D
+#CUB
+wget https://github.com/NVIDIA/cub/archive/1.10.0.tar.gz
+tar xzf 1.10.0.tar.gz
+export CUB_HOME=$PWD/cub-1.10.0
+#Install PyTorch3D from source pay attention to the version!!! Highest is v0.7.1 for pytorch 1.8.0
+#This is important for compiling with CUDA, otherwise in rasterize_meshes.py RuntimeError: Not compiled with GPU support
+export FORCE_CUDA=1
+pip install "git+https://github.com/facebookresearch/pytorch3d.git@v0.7.1"
+#Install MMCV-full
+pip install "mmcv-full>=1.3.17,<=1.5.3" -f https://download.openmmlab.com/mmcv/dist/cu111/torch1.8.0/index.html
+pip install "mmdet<=2.25.1"
+pip install "mmpose<=0.28.1"
+pip install "mmcls<=0.23.2" "mmtrack<=0.13.0"
+git clone https://github.com/open-mmlab/mmhuman3d.git
+cd mmhuman3d
+pip install -v -e .  # or "python setup.py develop"
+#prepare models
+#SMPL
+mkdir -p data/body_models/smpl
+wget -O SMPL_python_v.1.1.0.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed4cb9at1jFCrWsbzGXsE14Bnsru19ZkRC9OWANmVqaH2g?Download=1
+unzip SMPL_python_v.1.1.0.zip
+mv SMPL_python_v.1.1.0/smpl/models/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl data/body_models/smpl/SMPL_NEUTRAL.pkl
+mv SMPL_python_v.1.1.0/smpl/models/basicmodel_m_lbs_10_207_0_v1.1.0.pkl data/body_models/smpl/SMPL_MALE.pkl
+mv SMPL_python_v.1.1.0/smpl/models/basicmodel_f_lbs_10_207_0_v1.1.0.pkl data/body_models/smpl/SMPL_FEMALE.pkl
+rm -rf SMPL_python_v.1.1.0
+rm SMPL_python_v.1.1.0.zip
+#mesh regressor
+wget -O data/body_models/J_regressor_extra.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/J_regressor_extra.npy?versionId=CAEQHhiBgIDD6c3V6xciIGIwZDEzYWI5NTBlOTRkODU4OTE1M2Y4YTI0NTVlZGM1
+wget -O data/body_models/J_regressor_h36m.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/J_regressor_h36m.npy?versionId=CAEQHhiBgIDE6c3V6xciIDdjYzE3MzQ4MmU4MzQyNmRiZDA5YTg2YTI5YWFkNjRi
+wget -O data/body_models/smpl_mean_params.npz https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/smpl_mean_params.npz?versionId=CAEQHhiBgICN6M3V6xciIDU1MzUzNjZjZGNiOTQ3OWJiZTJmNThiZmY4NmMxMTM4
+mkdir -p data/checkpoints
+mkdir -p data/pretrained
+mkdir -p data/static_fits
+#HMR
+wget -O data/checkpoints/resnet50_hmr_pw3d.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/hmr/resnet50_hmr_pw3d-04f40f58_20211201.pth?versionId=CAEQHhiBgMD6zJfR6xciIDE0ODQ3OGM2OWJjMTRlNmQ5Y2ZjMWZhMzRkOTFiZDFm
+#SPIN
+wget -O data/gmm_08.pkl https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/gmm_08.pkl?versionId=CAEQHhiBgIDP6c3V6xciIGU4ZWFlYzlhNDJmODRmOGViYTMzOGRmODg2YjQ4NTg1
+wget -O data/static_fits/coco_fits.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/spin/static_fits/coco_fits.npy?versionId=CAEQHhiBgMCr4ZvV6xciIGY1OTZjM2NlZWI3ZDRjMzI5ODE0MWQxYjM2M2Y4NTVk
+wget -O data/static_fits/h36m_fits.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/spin/static_fits/h36m_fits.npy?versionId=CAEQHhiBgIC54ZvV6xciIDc2YjExNmM0NjBiMDQwMmU5NjJmODljNjgxYWE1MGQx
+wget -O data/static_fits/lspet_fits.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/spin/static_fits/lspet_fits.npy?versionId=CAEQHhiBgIDy4ZvV6xciIDkyMjQ3OGM2YWU5YTRlNTI4MmYxM2I5Njg1Yzc3OWYw
+wget -O data/static_fits/lsp_fits.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/spin/static_fits/lsp_fits.npy?versionId=CAEQHhiBgIDS4ZvV6xciIGFmMzdhMWJjZWQ1MjRkODBiZDY3NGU0MTc1Yzg0Nzlh
+wget -O data/static_fits/mpii_fits.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/spin/static_fits/mpii_fits.npy?versionId=CAEQHhiBgMCm4ZvV6xciIGM1OTIzZDlkNjVhODQ2MDY5ODkyZWE4ZDEzZGJlNTdi
+wget -O data/static_fits/mpi_inf_3dhp_fits.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/spin/static_fits/mpi_inf_3dhp_fits.npy?versionId=CAEQHhiBgMDf4ZvV6xciIDQyYjRmMzdhODdmNDQ1YTBhYzY4MTk1OTAxNzc4MmVj
+wget -O data/pretrained/spin_pretrain.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/spin/resnet50_spin_pw3d-e1d70119_20220708.pth?versionId=CAEQRBiBgMC9xJDujhgiIDQwMGY5Nzc0MDY3YzQzM2U4MmJiMWJiZmRlZWMzOWZh
+#VIBE
+wget -O data/pretrained/spin.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/vibe/spin.pth?versionId=CAEQKhiBgMD9hdub9xciIDIxMGI4NmMxMGIyNzQxOGM5YzYxZjMyYTVmMjllOTAy
+wget -O data/checkpoints/resnet50_vibe_pw3d.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/vibe/resnet50_vibe_pw3d-2e05a122_20211201.pth?versionId=CAEQHhiBgMCNvonS6xciIGEyOGM1M2M0ZTdiMDQ4NTc4NDI1MjBmYzgyMjUwMWI2
+#HYBRIK
+wget -O data/body_models/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/hybrik/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl?versionId=CAEQHhiBgIC_v.zV6xciIDkwMDE4M2NjZTRkMjRmMWRiNTY3MWQ5YjQ0YzllNDYz
+wget -O data/body_models/h36m_mean_beta.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/hybrik/h36m_mean_beta.npy?versionId=CAEQHhiBgMDnt_DV6xciIGM5MzM0MGI1NzBmYjRkNDU5MzUxMjdkM2Y1ZWRiZWM2
+wget -O data/checkpoints/resnet34_hybrik_mixed.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/hybrik/resnet34_hybrik_mixed-a61b3c9c_20220211.pth?versionId=CAEQKhiBgMDx0.Kd9xciIDA2NWFlMGVmNjNkMDQyYzE4NTFmMGJiYjczZWZmM2Rk
+#PARE
+mkdir -p data/occluders
+mkdir -p data/pretrained_models
+wget -O data/occluders/pascal_occluders.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/pare/pascal_occluders.npy?versionId=CAEQOhiBgMCH2fqigxgiIDY0YzRiNThkMjU1MzRjZTliMTBhZmFmYWY0MTViMTIx
+wget -O data/pretrained_models/hrnet_w32_conv_pare_coco.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/pare/hrnet_w32_conv_pare_coco.pth?versionId=CAEQOhiBgMCxmv_RgxgiIDkxNWJhOWMxNDEyMzQ1OGQ4YTQ3NjgwNjA0MWUzNDE5
+wget -O data/pretrained_models/hrnet_pretrain.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/pare/hrnet_pretrain.pth?versionId=CAEQOhiBgMC26fSigxgiIGViMTFiZmJkZDljMDRhMWY4Mjc5Y2UzNzBmYzU1MGVk
+wget -O data/pretrained_models/hrnet_w32_conv_pare_mosh.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/pare/with_mosh/hrnet_w32_conv_pare_mosh.pth?versionId=CAEQOhiBgIDooeHSgxgiIDkwYzViMTUyNjM1MjQ3ZDNiNzNjMjJlOGFlNjgxYjlh
+wget -O data/pretrained_models/hrnet_w32_conv_pare.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/pare/without_mosh/hrnet_w32_conv_pare.pth?versionId=CAEQOhiBgMCi4YbVgxgiIDgzYzFhMWNlNDE2NTQwN2ZiOTQ1ZGJmYTM4OTNmYWY5
+#expose
+#NEED SMPLX,FLAME,MANO
+mkdir -p data/body_models/smplx
+mkdir -p data/body_models/flame
+mkdir -p data/body_models/mano
+#SMPLX
+wget -O models_smplx_v1_1.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed80j693XelDlu_Re0Pgm9UBjSTfhnjKaZ9gtT3pp58LUA?Download=1
+unzip models_smplx_v1_1.zip
+mv models/smplx/SMPLX_NEUTRAL.pkl data/body_models/smplx/SMPLX_NEUTRAL.pkl
+mv models/smplx/SMPLX_NEUTRAL.npz data/body_models/smplx/SMPLX_NEUTRAL.npz
+wget -O data/body_models/smplx/all_means.pkl https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/data/body_models/smplx/all_means.pkl?versionId=CAEQRBiBgIChyabujhgiIDQwNDMzNzlmM2U4ZTQzNWY5NjUxMmU4ZGQ4NGMwNmIx
+wget -O data/body_models/smplx/MANO_SMPLX_vertex_ids.pkl https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/data/body_models/smplx/MANO_SMPLX_vertex_ids.pkl?versionId=CAEQRBiBgIDjx9v4jhgiIDJjZjhiMWI1ZGRmMTRmMTI5MDVkMzJkMWUyYTQxZDk2
+wget -O data/body_models/smplx/shape_mean.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/data/body_models/smplx/shape_mean.npy?versionId=CAEQRBiBgIDqwKbujhgiIGM4OTIxMWM3MDNiNzQxN2RiOTRjNDIwZTNiMzdmMDVi
+wget -O data/body_models/smplx/SMPL-X__FLAME_vertex_ids.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/data/body_models/smplx/SMPL-X__FLAME_vertex_ids.npy?versionId=CAEQRBiBgMDUyNv4jhgiIDBlYzNkOTI2YzFlZjRmZWZiZTJkM2IwZGZhZjg4NzE5
+wget -O data/body_models/smplx/SMPLX_to_J14.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/data/body_models/smplx/SMPLX_to_J14.npy?versionId=CAEQRBiBgMDd26fujhgiIDQ3ODhmOGJhMzhhMzQ2M2Y4MTRlNDcxY2VjNmUzY2Qy
+#FLAME
+wget -O data/body_models/flame/flame_dynamic_embedding.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/data/body_models/smplx/flame_dynamic_embedding.npy?versionId=CAEQRBiBgMCn4abujhgiIDBmNmEzYTBiZmIzYjQ5NTg4MmVhZGRjYTYwNWU2MGRk
+wget -O data/body_models/flame/flame_static_embedding.npy https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/data/body_models/smplx/flame_static_embedding.pkl?versionId=CAEQRBiBgMCAxqbujhgiIGIzMTRiZjZkZjRhMDQ4NzA5YmU2YjQyMTNmYmQ5OWI5
+wget -O FLAME2020.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EZEOIjvygfJEhL7GuXCQMr0B7kLGESflBQhrNDlaW0Fzww?Download=1
+unzip FLAME2020.zip
+mv generic_model.pkl data/body_models/flame/FLAME_NEUTRAL.pkl
+#MANO
+wget -O mano_v1_2.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EfbE1jWHW2VPkiCPhK5wAAMBBq51E6GXURdEOxkc-LBrJQ?Download=1
+unzip mano_v1_2.zip
+mv mano_v1_2/models/MANO_RIGHT.pkl data/body_models/mano/MANO_RIGHT.pkl
+#PRETRAINED MODELS
+wget -O data/pretrained_models/expose.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/expose/expose/expose-d9d5dbf7_20220708.pth?versionId=CAEQRBiBgMC8vbbujhgiIDg0NWUyM2ZiZGY3MzQ0YmI5YjFjYTA0Y2Q5NDE3MDEw
+#wget -O data/pretrained_models/hrnet_pretrain.pth 
+#lack link for data/pretrained_models/resnet18.pth
+wget -O data/pretrained_models/hrnet_hmr_expose_body.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/expose/body/hrnet_hmr_expose_body-d7db2e53_20220708.pth?versionId=CAEQRBiBgMDFt6zujhgiIDMxODBkODE4ZTI5NjQ1OTRiN2I0MDM4NWMwOTA1NTFm
+wget -O data/pretrained_models/resnet18_hmr_expose_face.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/expose/face/resnet18_hmr_expose_face-aca68aad_20220708.pth?versionId=CAEQRBiBgMCbvbbujhgiIGMxY2RlMjUyMGY4MjRmMDhiM2VkM2VhNWU4Y2ZjODZi
+wget -O data/pretrained_models/resnet18_hmr_expose_hand.pth https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/models/expose/hand/resnet18_hmr_expose_hand-c6cf0236_20220708.pth?versionId=CAEQRBiBgIDvqbbujhgiIGFiZTI3YmFkOTMyMTQxZWNiYjQxYzU0NjM0N2U1ZGVh
+#PyMAF-X
+mkdir mmhuman3d_download
+cd mmhuman3d_download
+wget -O mmhuman3d.7z -q https://openmmlab-share.oss-cn-hangzhou.aliyuncs.com/mmhuman3d/mmhuman3d.7z
+7za x mmhuman3d.7z
+cp -r mmhuman3d/data/partial_mesh/ ../data/
+cp mmhuman3d/data/mano_downsampling.npz ../data/
+cp mmhuman3d/data/smpl_downsampling.npz ../data/
+cd ..
+# Make image writable with overlays
+chmod a+rwX -fR /boot /bin /sbin /lib /lib32 /lib64 /usr /etc /var /opt || :
