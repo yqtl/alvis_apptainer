@@ -1,0 +1,82 @@
+name: Singularity Build (docker)
+on: 
+  push:
+
+    # Edit the branches here if you want to change deploy behavior
+    branches:
+      - main
+      - master
+
+  # Do the builds on all pull requests (to test them)
+  pull_request: []
+
+jobs:
+  changes:
+    name: "Changed Singularity Recipes"
+    runs-on: ubuntu-latest
+    outputs:
+      changed_file: ${{ steps.files.outputs.added_modified }}
+    steps:
+      - id: files
+        uses: jitterbit/get-changed-files@b17fbb00bdc0c0f63fcf166580804b4d2cdc2a42
+        with:
+          format: 'json'
+  
+  build-test-containers:
+    needs:
+      - changes
+    runs-on: ubuntu-latest
+    strategy:
+      # Keep going on other deployments if anything bloops
+      fail-fast: false
+      matrix:
+        changed_file: ${{ fromJson(needs.changes.outputs.changed_file) }}
+        singularity_version:
+          - '3.8.1'
+
+    container:
+      image: quay.io/singularity/singularity:v${{ matrix.singularity_version }}
+      options: --privileged
+
+    name: Check ${{ matrix.changed_file }}
+    steps:
+
+      - name: Check out code for the container builds
+        uses: actions/checkout@v2
+
+      - name: Continue if Singularity Recipe
+        run: |
+          # Continue if we have a changed Singularity recipe
+          if [[ "${{ matrix.changed_file }}" = *def* ]]; then
+            echo "keepgoing=true" >> $GITHUB_ENV
+          fi          
+
+      - name: Build Container
+        if: ${{ env.keepgoing == 'true' }}
+        env:
+          recipe: ${{ matrix.changed_file }}
+        run: |
+         ls 
+         if [ -f "${{ matrix.changed_file }}" ]; then
+            sudo -E singularity build container.sif ${{ matrix.changed_file }}
+            tag=$(echo "${recipe/Singularity\./}")
+            if [ "$tag" == "Singularity" ]; then
+                tag=latest
+            fi
+            # Build the container and name by tag
+            echo "Tag is $tag."
+            echo "tag=$tag" >> $GITHUB_ENV
+         else
+           echo "${{ matrix.changed_file }} is not found."
+           echo "Present working directory: $PWD"
+           ls
+         fi
+      - name: Report Build Success
+        if: ${{ env.SUCCESS }}
+        run: |
+          echo "Build passed for ${recipe}"
+          
+      - name: Report Build Failure
+        if: ${{ env.FAILURE }}
+        run: |
+          echo "Build failed for ${recipe}"
