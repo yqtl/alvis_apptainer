@@ -12,6 +12,8 @@ apt-get update && \
         libopencv-dev protobuf-compiler libgoogle-glog-dev libboost-all-dev \
         libhdf5-dev libatlas-base-dev libprotobuf-dev zip unzip file ninja-build p7zip-full p7zip-rar
 cd /
+#Install libc6 2.35, as current image GLIBC only up to 2.20
+#Conlfict with p7zip, so apt install p7zip first
 wget http://mirrors.kernel.org/ubuntu/pool/main/g/glibc/libc6_2.35-0ubuntu3_amd64.deb
 dpkg -i libc6_2.35-0ubuntu3_amd64.deb
 
