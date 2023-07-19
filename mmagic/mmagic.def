@@ -1,0 +1,17 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:22.12-py3
+Stage: spython-base
+
+%post
+apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential cmake git wget vim ffmpeg software-properties-common \
+        python3-setuptools python3-dev python3-pip python3-tk cython \
+        libx264-dev sudo pkg-config libyaml-dev libopencv-dev \
+        libgoogle-glog-dev libboost-all-dev libhdf5-dev libatlas-base-dev \
+        libopencv-dev protobuf-compiler libgoogle-glog-dev libboost-all-dev \
+        libhdf5-dev libatlas-base-dev libprotobuf-dev zip unzip file p7zip-full p7zip-rar
+pip install -U openmim
+mim install 'mmcv>=2.0.0' -v
+mim install 'mmengine' -v
+mim install 'mmagic' -v
