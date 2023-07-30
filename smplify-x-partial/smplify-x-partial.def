@@ -1,0 +1,70 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/cuda:10.0-devel-ubuntu18.04
+
+%post
+    apt-get update
+    apt install -y python3.7 python3.7-distutils python3.7-venv python3.7-dev git wget unzip vim
+
+    # Print python version
+    python3.7 --version
+    # link python3.7 to python
+    #ln -s /usr/bin/python3.7 /usr/bin/python
+    # Create workspace
+    mkdir /workspace
+    cd /workspace
+
+    # Get pip
+    wget https://bootstrap.pypa.io/get-pip.py
+    python3.7 get-pip.py
+
+    # Install necessary packages
+    pip install -U pip
+    pip install https://download.pytorch.org/whl/cu100/torch-1.1.0-cp37-cp37m-linux_x86_64.whl
+    pip install https://download.pytorch.org/whl/cu100/torchvision-0.3.0-cp37-cp37m-linux_x86_64.whl
+
+    # Clone and setup smplx
+    git clone https://github.com/xiyichen/smplx
+    cd smplx
+    python3.7 setup.py install
+
+    cd /workspace
+
+    # Install configer from github
+    pip install git+https://github.com/MPI-IS/configer.git
+
+    # Download and install human_body_prior
+    wget https://github.com/nghorbani/human_body_prior/archive/refs/heads/cvpr19.zip
+    pip install cvpr19.zip
+
+    # Fix helper_math.h not found error
+    cd /workspace
+    git clone https://github.com/NVIDIA/cuda-samples.git
+    export CUDA_SAMPLES_INC=/workspace/cuda-samples/Common/
+    
+    # Clone and setup torch-mesh-isect
+    git clone https://github.com/vchoutas/torch-mesh-isect
+    cd torch-mesh-isect/
+    python3.7 setup.py install
+
+    cd /workspace
+
+    # Clone and setup smplify-x-partial
+    git clone https://github.com/xiyichen/smplify-x-partial
+    cd /workspace/smplify-x-partial/
+    pip install -r requirements.txt
+    cd smplifyx
+
+    # Install tensorflow
+    pip install tensorflow==1.15.2
+
+    # Clone and setup homogenus
+    git clone https://github.com/xiyichen/homogenus.git
+    cd homogenus
+    #python3.7 setup.py install
+
+    cd /workspace
+    # Vpose ckpt
+    # Prepare smplx_parts_segm.pkl
+    # SMPLX model
+%environment
+    export CUDA_SAMPLES_INC=/workspace/cuda-samples/Common/

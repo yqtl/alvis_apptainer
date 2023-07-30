@@ -1,0 +1,17 @@
+#not working because some dependencies require python 3.8.
+
+#From github repo: The code has been tested with Python 3.6, CUDA 10.0, CuDNN 7.3 and PyTorch 1.0 on Ubuntu 18.04.
+#This is an apptainer script that will install the smplify-x
+Bootstrap: docker
+From: nvcr.io/nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
+%post
+apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential cmake git wget vim ffmpeg software-properties-common \
+        python3-setuptools python3-dev python3-pip python3-tk cython \
+        libx264-dev sudo pkg-config libyaml-dev libopencv-dev \
+        libgoogle-glog-dev libboost-all-dev libhdf5-dev libatlas-base-dev \
+        libopencv-dev protobuf-compiler libgoogle-glog-dev libboost-all-dev \
+        libhdf5-dev libatlas-base-dev libprotobuf-dev zip unzip file ninja-build p7zip-full p7zip-rar
+DEBIAN_FRONTEND=noninteractive apt-get install mlocate -y && updatedb
+# Install CMake 3.17.1

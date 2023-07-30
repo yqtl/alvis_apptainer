@@ -1,0 +1,40 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/cuda:10.0-devel-ubuntu18.04
+
+%post
+apt-get update
+    apt install -y python3.7 python3.7-distutils python3.7-venv python3.7-dev git wget unzip
+# print python version
+python3.7 --version
+
+mkdir /workspace
+cd /workspace
+wget https://bootstrap.pypa.io/get-pip.py
+python get-pip.py
+
+
+pip install -U pip
+pip install https://download.pytorch.org/whl/cu100/torch-1.1.0-cp37-cp37m-linux_x86_64.whl
+pip install https://download.pytorch.org/whl/cu100/torchvision-0.3.0-cp37-cp37m-linux_x86_64.whl
+cd /workspace
+git clone https://github.com/xiyichen/smplx
+cd smplx
+python setup.py install
+cd /workspace
+pip install git+https://github.com/MPI-IS/configer.git
+wget https://github.com/nghorbani/human_body_prior/archive/refs/heads/cvpr19.zip
+pip install cvpr19.zip
+rm -fr torch-mesh-isect
+git clone https://github.com/xiyichen/torch-mesh-isect
+cd torch-mesh-isect/
+python setup.py install
+cd /workspace
+git clone https://github.com/xiyichen/smplify-x-partial
+cd /workspace/smplify-x-partial/
+pip install -r requirements.txt
+cd smplifyx
+pip install tensorflow==1.15.2
+git clone https://github.com/xiyichen/homogenus.git
+cd homogenus
+python setup.py install
+cd /workspace

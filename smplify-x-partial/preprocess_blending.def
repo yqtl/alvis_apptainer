@@ -1,0 +1,39 @@
+bootstrap: docker
+from: nvcr.io/nvidia/cuda:11.1.1-devel-ubuntu20.04
+
+%post
+    # Set CUDA architecture list
+    export TORCH_CUDA_ARCH_LIST="3.5;5.0;6.0;6.1;7.0;7.5;8.0;8.6+PTX"
+
+    # Make image writable with overlays
+    chmod a+rwX -fR /boot /bin /sbin /lib /lib32 /lib64 /usr /etc /var /opt || :
+
+    # Update system packages and install essential build tools
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential cmake git wget vim ffmpeg software-properties-common \
+        python3-setuptools python3-dev python3-pip python3-tk cython \
+        libx264-dev sudo pkg-config libyaml-dev libopencv-dev \
+        libgoogle-glog-dev libboost-all-dev libhdf5-dev libatlas-base-dev \
+        libopencv-dev protobuf-compiler libgoogle-glog-dev libboost-all-dev \
+        libhdf5-dev libatlas-base-dev libprotobuf-dev zip unzip file ninja-build
+
+    mkdir /workspace && cd /workspace
+    # install dependencies: (use cu111 according to colab instruction)
+    pip install torch==1.10.0+cu111 torchvision==0.11.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
+    # install mmcv-full thus we could use CUDA operators
+    pip install mmcv-full==1.6.1 -f https://download.openmmlab.com/mmcv/dist/cu111/torch1.10/index.html
+    # install mmdet for inference demo
+    pip install mmdet==2.25.2
+
+    # clone mmpose repo
+    rm -rf mmpose
+    git clone https://github.com/open-mmlab/mmpose.git
+    cd mmpose
+    git checkout v0.28.1
+    # install mmpose dependencies
+    pip install -r requirements.txt
+
+    # install mmpose in develop mode
+    pip install -e .
+    pip install notebook

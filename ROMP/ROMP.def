@@ -1,0 +1,33 @@
+# Recipe to build ROMP
+Bootstrap: docker
+From: nvcr.io/nvidia/cuda:10.2-cudnn8-devel-ubuntu18.04
+%post
+apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    python3.8 python3.8-distutils python3.8-dev wget unzip git libglib2.0-0 libgl1-mesa-dev
+mkdir /workspace
+cd /workspace
+wget https://bootstrap.pypa.io/get-pip.py
+python3.8 get-pip.py
+
+pip install torch==1.10.0+cu102 torchvision==0.11.1+cu102 -f https://download.pytorch.org/whl/torch_stable.html
+
+pip install https://github.com/Arthur151/ROMP/releases/download/v1.1/pytorch3d-0.6.1-cp38-cp38-linux_x86_64.whl
+
+cd /workspace
+git clone https://github.com/Arthur151/ROMP.git
+cd ROMP
+pip install -r requirements.txt
+
+wget https://github.com/Arthur151/ROMP/releases/download/V2.0/smpl_model_data.zip
+unzip smpl_model_data.zip
+
+wget -O SMPL_python_v.1.1.0.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed4cb9at1jFCrWsbzGXsE14Bnsru19ZkRC9OWANmVqaH2g?Download=1
+unzip SMPL_python_v.1.1.0.zip
+
+mv SMPL_python_v.1.1.0/smpl/models/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl smpl_model_data/SMPL_NEUTRAL.pkl
+
+pip install cython setuptools lap
+pip install simple-romp
+pip install numpy==1.23
+romp.prepare_smpl -source_dir=/workspace/ROMP/smpl_model_data

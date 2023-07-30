@@ -1,0 +1,102 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:19.12-py3
+#From : nvidia/cudagl:11.3.0-devel
+#NVIDIA CUDA 11.4.2 with cuBLAS 11.6.5.2, cuDNN 8.2.4.15, torch 1.10.0a0+0aef44c, Python3.8
+%post
+apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential cmake git wget vim ffmpeg software-properties-common \
+        python3-setuptools python3-dev python3-pip python3-tk cython \
+        libx264-dev sudo pkg-config libyaml-dev libopencv-dev \
+        libgoogle-glog-dev libboost-all-dev libhdf5-dev libatlas-base-dev \
+        libopencv-dev protobuf-compiler libgoogle-glog-dev libboost-all-dev \
+        libhdf5-dev libatlas-base-dev libprotobuf-dev zip unzip file ninja-build p7zip-full p7zip-rar \
+        llvm-6.0 freeglut3 freeglut3-dev mesa-utils libegl1 xvfb
+DEBIAN_FRONTEND=noninteractive apt-get install mlocate -y && updatedb
+
+# Pyrender
+#mkdir  /workspace
+cd /workspace
+wget https://github.com/mmatl/travis_debs/raw/master/xenial/mesa_18.3.3-0.deb
+dpkg -i ./mesa_18.3.3-0.deb || true
+apt install -f -y
+wget https://archive.mesa3d.org/mesa-18.3.3.tar.gz
+tar xfv mesa-18.3.3.tar.gz
+cd mesa-18.3.3
+./configure --prefix=/usr/local                               \
+            --enable-opengl --disable-gles1 --disable-gles2   \
+            --disable-va --disable-xvmc --disable-vdpau       \
+            --enable-shared-glapi                             \
+            --disable-texture-float                           \
+            --enable-gallium-llvm --enable-llvm-shared-libs   \
+            --with-gallium-drivers=swrast,swr                 \
+            --disable-dri --with-dri-drivers=                 \
+            --disable-egl --with-egl-platforms= --disable-gbm \
+            --disable-glx                                     \
+            --disable-osmesa --enable-gallium-osmesa          \
+            ac_cv_path_LLVM_CONFIG=llvm-config-6.0
+make -j8
+make install
+cd /workspace
+git clone https://github.com/mmatl/pyopengl.git
+pip install ./pyopengl
+
+
+# Fix helper_math.h not found error
+cd /workspace
+git clone https://github.com/NVIDIA/cuda-samples.git
+export CUDA_SAMPLES_INC=/workspace/cuda-samples/Common/
+# Install torch-mesh-isect
+git clone https://github.com/vchoutas/torch-mesh-isect
+cd torch-mesh-isect
+mv include/double_vec_ops.h src/
+#pip install torch==1.10.0
+sed -i '1i#ifndef AT_CHECK\n#define AT_CHECK TORCH_CHECK\n#endif\n' /workspace/torch-mesh-isect/src/bvh.cpp
+pip install -r requirements.txt && python3 setup.py install
+# Install smplx
+cd /workspace
+pip install smplx[all]
+git clone https://github.com/vchoutas/smplx && cd smplx && python3 setup.py install
+# Install human_body_prior
+cd /workspace
+git clone https://github.com/nghorbani/human_body_prior.git
+cd human_body_prior && git checkout cvpr19
+pip install scikit-build
+#pip install opencv-python==4.5.5.64
+#python setup.py develop
+#python setup.py install
+# Install smplify-x
+cd /workspace
+git clone https://github.com/vchoutas/smplify-x.git
+cd smplify-x
+wget https://owncloud.tuebingen.mpg.de/index.php/s/MWnr8Kso4K8T8at/download/smplx_parts_segm.pkl
+pip install trimesh
+pip install pyrender
+# Download the SMPLX model
+wget -O models_smplx_v1_1.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed80j693XelDlu_Re0Pgm9UBjSTfhnjKaZ9gtT3pp58LUA?Download=1
+unzip models_smplx_v1_1.zip
+# Prepare data folder for rendering
+mkdir -p data/images
+mkdir -p data/keypoints
+pip install dataclasses
+pip install configargparse
+
+# Download Vposer
+cd /workspace
+wget -O vposer_V1_0.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EcSSDMGKiVpAjlIIhvIOa30B0wGuM01JJl68hdJAQw1STw?Download=1
+unzip vposer_V1_0.zip
+
+#cd /workspace/human_body_prior
+#pip install opencv-python==4.5.5.64
+#python setup.py develop
+#python setup.py install
+# Fix mask issue
+#comment out line 302-304
+#sed -i '302,304s/^/#/' /opt/conda/lib/python3.6/site-packages/torchgeometry-0.1.2-py3.6.egg/torchgeometry/core/conversions.py
+# add line 305-307 https://github.com/vchoutas/smplify-x/issues/191
+#sed -i '305i\    mask_c1 = mask_d2 * ~(mask_d0_d1)' /opt/conda/lib/python3.6/site-packages/torchgeometry-0.1.2-py3.6.egg/torchgeometry/core/conversions.py
+#sed -i '306i\    mask_c2 = ~(mask_d2) * mask_d0_nd1' /opt/conda/lib/python3.6/site-packages/torchgeometry-0.1.2-py3.6.egg/torchgeometry/core/conversions.py
+#sed -i '307i\    mask_c3 = ~(mask_d2) * ~(mask_d0_nd1)' /opt/conda/lib/python3.6/site-packages/torchgeometry-0.1.2-py3.6.egg/torchgeometry/core/conversions.py
+%environment
+    export PATH=$PATH:/usr/local/bin
+    export CUDA_SAMPLES_INC=/cuda-samples/Common/
