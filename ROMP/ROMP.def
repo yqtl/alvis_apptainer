@@ -4,7 +4,9 @@ From: nvcr.io/nvidia/cuda:10.2-cudnn8-devel-ubuntu18.04
 %post
 apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    python3.8 python3.8-distutils python3.8-dev wget unzip git libglib2.0-0 libgl1-mesa-dev
+    python3.8 python3.8-distutils python3.8-dev wget unzip git libglib2.0-0 libgl1-mesa-dev #\
+    # smplify
+    # libosmesa6-dev libglu1-mesa-dev freeglut3-dev mesa-common-dev
 mkdir /workspace
 cd /workspace
 wget https://bootstrap.pypa.io/get-pip.py
