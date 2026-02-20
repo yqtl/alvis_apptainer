@@ -52,19 +52,19 @@ cd /workspace/smplx
 sed -i "5s/.*/mask_ids_fname: 'transfer_data\/smplx_mask_ids.npy'/" /workspace/smplx/config_files/smplx2smpl.yaml
 mkdir -p transfer_data/body_models/smpl
 # Download model correspondences for model tranfer
-wget -O model_transfer.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EeQko1VAvB5LsTwd1UsSRvEBCmq55U9wTc61mKCi1ufc2Q?Download=1
+wget -O model_transfer.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/IQDkJKNVQLweS7E8HdVLEkbxAQpqueVPcE3OtZigotbn3Nk?Download=1
 unzip model_transfer.zip -d transfer_data/
 # Download sample data
-wget -O sample_transfer_data.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/EeBIKSzK0-9Dkita7oAX6tABE6W8CTeHyOlm3VVNA_Xi2A?Download=1
+wget -O sample_transfer_data.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/IQDgSCksytPvQ5IrWu6AF-rQAROlvAk3h8jpZt1VTQP14tg?Download=1
 unzip sample_transfer_data.zip #-d transfer_data/
 # Download the SMPLX model
-wget -O models_smplx_v1_1.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed80j693XelDlu_Re0Pgm9UBjSTfhnjKaZ9gtT3pp58LUA?Download=1
+wget -O models_smplx_v1_1.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/IQDfNI-vd13pQ5bv0XtD4JvVAY0k34Z4ymmfYLU96aefC1A?Download=1
 unzip models_smplx_v1_1.zip
 mv models/smplx transfer_data/body_models/
 rm -r models
 rm models_smplx_v1_1.zip
 #Download SMPL
-wget -O SMPL_python_v.1.1.0.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/Ed4cb9at1jFCrWsbzGXsE14BPORApYlsJrME3xJm8NW1UQ?Download=1
+wget -O SMPL_python_v.1.1.0.zip https://kth-my.sharepoint.com/:u:/g/personal/qyuan_ug_kth_se/IQDeHG_WrdYxQq1rG8xl7BNeATzkQKWJbCazBN8SZvDVtVE?Download=1
 unzip SMPL_python_v.1.1.0.zip
 mv SMPL_python_v.1.1.0/smpl/models/basicmodel_f_lbs_10_207_0_v1.1.0.pkl transfer_data/body_models/smpl/SMPL_FEMALE.pkl
 mv SMPL_python_v.1.1.0/smpl/models/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl transfer_data/body_models/smpl/SMPL_NEUTRAL.pkl
